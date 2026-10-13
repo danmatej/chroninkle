@@ -178,6 +178,14 @@ bool SetArchiveAfterDays(int days);
 SaveResult SaveClip(const recording_service::RecordedClip& clip,
                     const SaveOptions& options = {});
 SaveResult SaveTranscript(const std::string& recording_id, const std::string& transcript);
+// Publishes an already-written transcript file (absolute path on the mounted SD card) as a
+// new text-only recording: the file is moved to <id>.txt and a metadata sidecar is written
+// with has_transcript=true and no WAV. Used by meeting mode, whose audio is transcribed in
+// segments and discarded as it goes. On success the source file no longer exists.
+SaveResult SaveTextNoteFromFile(const std::string& transcript_path,
+                                int64_t created_unix_seconds,
+                                uint32_t duration_ms,
+                                const SaveOptions& options = {});
 
 const char* TagName(RecordingTag tag);
 

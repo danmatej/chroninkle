@@ -37,16 +37,17 @@ const EmbeddedImageAsset* ResolveMicActiveIcon(const FooterMicState& mic)
                                       : project_assets::GetIcon(EmbeddedIconId::kMicOn);
 }
 
-std::array<const FooterButtonState*, 6> VisibleButtons(const GlobalFooterState& state,
+std::array<const FooterButtonState*, 7> VisibleButtons(const GlobalFooterState& state,
                                                        int* count_out)
 {
-    std::array<const FooterButtonState*, 6> buttons = {};
-    std::array<VisibleFooterButton, 6> mapped = {{
+    std::array<const FooterButtonState*, 7> buttons = {};
+    std::array<VisibleFooterButton, 7> mapped = {{
         {.item = GlobalFooterItemId::kSettings, .state = &state.settings},
         {.item = GlobalFooterItemId::kWifi, .state = &state.wifi},
         {.item = GlobalFooterItemId::kTime, .state = &state.time},
         {.item = GlobalFooterItemId::kFolder, .state = &state.folder},
         {.item = GlobalFooterItemId::kSticky, .state = &state.sticky},
+        {.item = GlobalFooterItemId::kMeeting, .state = &state.meeting},
         {.item = GlobalFooterItemId::kHome, .state = &state.home},
     }};
     int count = 0;
@@ -63,10 +64,10 @@ std::array<const FooterButtonState*, 6> VisibleButtons(const GlobalFooterState& 
     return buttons;
 }
 
-std::array<VisibleFooterButton, 6> VisibleFooterButtons(const GlobalFooterState& state,
+std::array<VisibleFooterButton, 7> VisibleFooterButtons(const GlobalFooterState& state,
                                                         int* count_out)
 {
-    std::array<VisibleFooterButton, 6> buttons = {};
+    std::array<VisibleFooterButton, 7> buttons = {};
     int count = 0;
     const VisibleFooterButton candidates[] = {
         {.item = GlobalFooterItemId::kSettings, .state = &state.settings},
@@ -74,6 +75,7 @@ std::array<VisibleFooterButton, 6> VisibleFooterButtons(const GlobalFooterState&
         {.item = GlobalFooterItemId::kTime, .state = &state.time},
         {.item = GlobalFooterItemId::kFolder, .state = &state.folder},
         {.item = GlobalFooterItemId::kSticky, .state = &state.sticky},
+        {.item = GlobalFooterItemId::kMeeting, .state = &state.meeting},
         {.item = GlobalFooterItemId::kHome, .state = &state.home},
     };
 
@@ -166,7 +168,7 @@ UiRect FooterButtonBounds(int portrait_width,
     const ButtonIconStyle button_style = BuildFooterButtonStyle();
 
     int button_count = 0;
-    const std::array<VisibleFooterButton, 6> buttons = VisibleFooterButtons(state, &button_count);
+    const std::array<VisibleFooterButton, 7> buttons = VisibleFooterButtons(state, &button_count);
     int cursor_x = button_cell.x;
     for (int index = 0; index < button_count; ++index) {
         const VisibleFooterButton& button = buttons[static_cast<size_t>(index)];
@@ -239,7 +241,7 @@ void DrawGlobalFooter(uint8_t* framebuffer,
     const ButtonIconStyle button_style = BuildFooterButtonStyle();
 
     int button_count = 0;
-    const std::array<const FooterButtonState*, 6> buttons = VisibleButtons(state, &button_count);
+    const std::array<const FooterButtonState*, 7> buttons = VisibleButtons(state, &button_count);
     int cursor_x = button_cell.x;
     for (int index = 0; index < button_count; ++index) {
         const FooterButtonState* button = buttons[static_cast<size_t>(index)];

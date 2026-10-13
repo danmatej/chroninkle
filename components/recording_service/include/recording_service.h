@@ -45,6 +45,9 @@ struct UiState {
     bool has_clip = false;
     bool saving = false;
     bool exporting = false;
+    // Continuous capture into the stream ring (meeting mode). Independent of the
+    // press-and-hold armed/recording states, which are refused while streaming.
+    bool streaming = false;
     size_t recorded_samples = 0;
     uint32_t duration_ms = 0;
     uint32_t max_recording_ms = 0;
@@ -142,6 +145,18 @@ esp_err_t Finish();
 esp_err_t Cancel();
 void DiscardClip();
 RecordedClipPtr GetRecordedClip();
+
+// Streaming capture (meeting mode): the capture task pushes every mic sample into a
+// fixed PSRAM ring that a consumer drains with ReadStream. There is no duration cap;
+// if the consumer falls behind by more than the ring length, the newest samples are
+// dropped and counted. Arm()/Start() are refused while streaming.
+uint32_t SampleRateHz();
+esp_err_t StartStreaming();
+esp_err_t StopStreaming();
+bool IsStreaming();
+// Copies up to max_samples buffered samples into dst and returns how many were copied.
+size_t ReadStream(int16_t* dst, size_t max_samples);
+size_t StreamDroppedSamples();
 
 esp_err_t SaveLastClipWav(const char* path);
 esp_err_t RecordDebugClipToWav(const char* path, uint32_t lead_in_ms = 1000,

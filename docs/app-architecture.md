@@ -76,6 +76,16 @@ onboarding, and a set of feature pages plus overlays) built on:
 - A `recording_archive_service` component that owns the SD recording index
   (listing, metadata, follow-up flags) surfaced by the Notes/Todos/Follow-up
   pages and the sticky-note overlay.
+- A `meeting_service` component that owns hands-free Meeting mode: it drains
+  `recording_service`'s streaming ring into ~60 s WAV segments under
+  `/sdcard/meetings/<id>/` (fixed RAM, independent of meeting length), and a
+  background transcriber that uploads each closed segment through
+  `gemini_service`, appends the text to the meeting's `transcript.txt`, and
+  deletes the WAV. Untranscribed segments survive offline periods and reboots
+  and are retried with backoff; when a stopped meeting is fully transcribed it
+  is published as one Note via `recording_archive_service::SaveTextNoteFromFile`.
+  `main/meeting_page_runtime.cpp` composes its snapshot into the Meeting
+  screen and owns the "End meeting?" modal.
 - A `transcription_service` and a `summary_service` component that own the
   Gemini-backed transcription and summary flows respectively (these live in
   their own components, not inside `gemini_service`).
@@ -183,6 +193,7 @@ components/
   playback_service/
   power_service/
   project_assets/
+  meeting_service/
   qmi8658/
   recording_archive_service/
   recording_service/
@@ -809,6 +820,8 @@ On single-core builds, the shared task config maps the app core back to CPU0.
 | `storage_service` | `storage_service` | 2 | CPU1 | Long-running SD operations such as format. |
 | `timezone_sync` | `timezone_service` | 2 | CPU0 | SNTP sync, system-time update, and RTC writeback. |
 | `clip_playback` | `recording_session_service` | 2 | CPU1 | Short-lived worker that replays a just-recorded clip. |
+| `meeting_writer` | `meeting_service` | 3 | CPU1 | Drains the streaming capture ring into PSRAM and flushes meeting audio segments to SD every few seconds; above other SD work so the 8 s ring never overflows. |
+| `meeting_stt` | `meeting_service` | 2 | CPU0 | Transcribes closed meeting segments one at a time via `gemini_service`, appends text, deletes the WAV, retries with backoff, and publishes the finished meeting note. |
 | `transcribe_retry` | `transcription_retry_service` | 2 | CPU1 | One-shot batch retry of offline-queued transcriptions. Runs on its own task rather than `gemini_service`'s shared worker: it blocks waiting on a transcription result that is itself queued onto that same worker, which would otherwise never get a turn to run. |
 
 The mapping intentionally keeps long-running SD work below input and audio

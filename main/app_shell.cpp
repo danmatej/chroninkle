@@ -31,6 +31,8 @@
 #include "input_focus_runtime.h"
 #include "input_runtime_setup.h"
 #include "lock_screen_runtime.h"
+#include "meeting_page_runtime.h"
+#include "meeting_service.h"
 #include "overlay_runtime.h"
 #include "page_input_runtime.h"
 #include "power_key_runtime.h"
@@ -191,8 +193,14 @@ footer_runtime::LayoutState FooterLayoutForScreen(display_service::ScreenId scre
     layout.show_wifi = false;
     layout.show_time = false;
     layout.show_sticky = is_home;
+    layout.show_meeting = is_home;
     layout.show_home = !is_home;
     layout.show_mic = true;
+    if (screen == display_service::ScreenId::kMeeting) {
+        // The Meeting screen is a takeover status page: FN/ACTION end the meeting, so there
+        // is nothing for footer focus to land on.
+        layout.visible = false;
+    }
     return layout;
 }
 
@@ -354,6 +362,25 @@ esp_err_t ShowSettingsAboutScreen(display_service::RefreshMode refresh_mode)
     }
     return display_service::SetCurrentScreen(display_service::ScreenId::kSettingsAbout,
                                              refresh_mode, "show_settings_about_screen");
+}
+
+esp_err_t ShowMeetingScreen(display_service::RefreshMode refresh_mode)
+{
+    SyncStatusBarState("show_meeting_screen");
+    footer_runtime::SetLayoutState(FooterLayoutForScreen(display_service::ScreenId::kMeeting));
+    const esp_err_t footer_err = footer_runtime::UpdateDisplayState();
+    if (footer_err != ESP_OK && footer_err != ESP_ERR_INVALID_STATE) {
+        ESP_LOGW(kTag, "Footer sync before meeting screen failed: %s",
+                 esp_err_to_name(footer_err));
+    }
+    const esp_err_t meeting_err = meeting_page_runtime::UpdateDisplayState();
+    if (meeting_err != ESP_OK && meeting_err != ESP_ERR_INVALID_STATE) {
+        ESP_LOGW(kTag, "Meeting page sync before show failed: %s",
+                 esp_err_to_name(meeting_err));
+    }
+    meeting_page_runtime::StartElapsedTicker();
+    return display_service::SetCurrentScreen(display_service::ScreenId::kMeeting, refresh_mode,
+                                             "show_meeting_screen");
 }
 
 esp_err_t ShowSettingsSoundScreen(display_service::RefreshMode refresh_mode)
@@ -931,6 +958,130 @@ void ShowFollowUpStickyNotes()
     }
 }
 
+void ShowMeetingToast(const char* text, EmbeddedIconId icon, uint32_t duration_ms)
+{
+    epaper_ui::ToastState toast = {};
+    toast.visible = true;
+    toast.body_text = text;
+    toast.leading_icon = project_assets::GetIcon(icon);
+    (void)overlay_runtime::ShowToastForDuration(toast, duration_ms);
+}
+
+void StartMeeting(app_interaction::InputResult* result)
+{
+    const esp_err_t err = meeting_service::Start();
+    if (err != ESP_OK) {
+        ESP_LOGW(kTag, "Meeting start failed: %s", esp_err_to_name(err));
+        result->play_feedback = true;
+        result->feedback_cue = app_interaction::FeedbackCue::kError;
+        const char* text = err == ESP_ERR_NOT_FOUND ? "Insert an SD card to record a meeting"
+                           : err == ESP_ERR_NO_MEM  ? "SD card is full"
+                                                    : "Recording is busy";
+        ShowMeetingToast(text, EmbeddedIconId::kMeeting, 2500);
+        return;
+    }
+    result->play_feedback = true;
+    result->feedback_cue = app_interaction::FeedbackCue::kRecordingStart;
+    const esp_err_t show_err = ShowMeetingScreen(display_service::RefreshMode::kFull);
+    if (show_err != ESP_OK && show_err != ESP_ERR_INVALID_STATE) {
+        ESP_LOGW(kTag, "Show meeting screen failed: %s", esp_err_to_name(show_err));
+    }
+}
+
+void LeaveMeetingScreen()
+{
+    meeting_page_runtime::StopElapsedTicker();
+    meeting_page_runtime::ClearPendingSelectModal();
+    const esp_err_t err = ShowHomeScreen(display_service::RefreshMode::kFull);
+    if (err != ESP_OK && err != ESP_ERR_INVALID_STATE) {
+        ESP_LOGW(kTag, "Return home after meeting failed: %s", esp_err_to_name(err));
+    }
+}
+
+void EndMeetingFromUser()
+{
+    const esp_err_t err = meeting_service::Stop();
+    if (err != ESP_OK && err != ESP_ERR_INVALID_STATE) {
+        ESP_LOGW(kTag, "Meeting stop failed: %s", esp_err_to_name(err));
+    }
+    LeaveMeetingScreen();
+    ShowMeetingToast("Meeting ended. The note is saved once transcription finishes.",
+                     EmbeddedIconId::kMeeting, 3000);
+}
+
+// Buttons on the Meeting screen: FN or a quick ACTION tap asks to end the meeting; everything
+// else is swallowed so press-and-hold recording can't arm on top of the meeting.
+bool HandleMeetingScreenButton(const button_service::ButtonEventInfo& event)
+{
+    if (display_service::GetCurrentScreen() != display_service::ScreenId::kMeeting) {
+        return false;
+    }
+    const bool display_sleeping = device_sleep_service::GetSnapshot().runtime.stage ==
+                                  device_sleep_service::Stage::kDisplaySleeping;
+    device_sleep_runtime::NotifyUserActivity();
+    if (display_sleeping) {
+        return true;
+    }
+    const bool end_gesture =
+        event.event == button_service::ButtonEvent::kSingleClick &&
+        (button_service::IsSelectButton(event.button) || button_service::IsBackGesture(event));
+    if (!end_gesture) {
+        return true;
+    }
+    if (!meeting_service::IsActive()) {
+        LeaveMeetingScreen();
+        return true;
+    }
+    PlayFeedback(feedback_service::FeedbackEvent::kModalOpen);
+    const esp_err_t err = meeting_page_runtime::ShowEndModal();
+    if (err != ESP_OK && err != ESP_ERR_INVALID_STATE) {
+        ESP_LOGW(kTag, "Show end meeting modal failed: %s", esp_err_to_name(err));
+    }
+    return true;
+}
+
+void HandleMeetingEvent(const meeting_service::Event& event, void*)
+{
+    const meeting_service::Snapshot& snapshot = event.snapshot;
+    ESP_LOGI(kTag,
+             "Meeting event: type=%d active=%d elapsed_ms=%lu recorded=%d transcribed=%d "
+             "pending=%d waiting=%d",
+             static_cast<int>(event.type), snapshot.active ? 1 : 0,
+             static_cast<unsigned long>(snapshot.elapsed_ms), snapshot.segments_recorded,
+             snapshot.segments_transcribed, snapshot.segments_pending,
+             snapshot.waiting_for_network ? 1 : 0);
+
+    const bool on_meeting_screen = ScreenActiveForRefresh(display_service::ScreenId::kMeeting);
+    if (event.type == meeting_service::EventType::kSaved) {
+        ShowMeetingToast(snapshot.saved_recording_id.empty() ? "No speech was detected in the meeting"
+                                                             : "Meeting note saved",
+                         EmbeddedIconId::kMeeting, 3000);
+        return;
+    }
+    if (event.type == meeting_service::EventType::kError && !snapshot.active &&
+        on_meeting_screen) {
+        // The writer stopped the meeting on its own (SD full / write failures).
+        LeaveMeetingScreen();
+        PlayFeedback(feedback_service::FeedbackEvent::kError);
+        ShowMeetingToast(snapshot.last_error.empty() ? "Meeting stopped" : snapshot.last_error.c_str(),
+                         EmbeddedIconId::kMeeting, 3500);
+        return;
+    }
+    if (on_meeting_screen) {
+        (void)meeting_page_runtime::UpdateDisplayStateAndRequestRefresh(
+            display_service::RefreshMode::kPartial);
+    }
+}
+
+void InitMeetingService()
+{
+    meeting_service::SetEventHandler(HandleMeetingEvent, nullptr);
+    const esp_err_t err = meeting_service::Init();
+    if (err != ESP_OK) {
+        ESP_LOGW(kTag, "Meeting service init failed: %s", esp_err_to_name(err));
+    }
+}
+
 app_interaction::InputResult HandleFooterActivate(footer_runtime::FooterFocusItem item, void*)
 {
     app_interaction::InputResult result = {};
@@ -964,6 +1115,9 @@ app_interaction::InputResult HandleFooterActivate(footer_runtime::FooterFocusIte
             // Opens the follow-up sticky overlay (or a nudge toast). The overlay owns its own
             // refresh + feedback, and there is no underlying screen change, so return directly.
             ShowFollowUpStickyNotes();
+            return result;
+        case footer_runtime::FooterFocusItem::kMeeting:
+            StartMeeting(&result);
             return result;
         case footer_runtime::FooterFocusItem::kFolder:
         case footer_runtime::FooterFocusItem::kMic:
@@ -1203,6 +1357,7 @@ void HandleRecordingSessionEvent(const recording_session_service::Event& event, 
     switch (event.snapshot.phase) {
         case recording_session_service::Phase::kAwaitingTagSelection: {
             time_page_runtime::ClearPendingSelectModal();
+            meeting_page_runtime::ClearPendingSelectModal();
             settings_todos_page_runtime::ClearPendingSelectModal();
             const esp_err_t err =
                 overlay_runtime::ShowSelectModal(BuildRecordingTagSelectModalState());
@@ -1512,6 +1667,7 @@ void HandleGeminiEvent(const gemini_service::Event& event, void*)
     if (ready && !was_ready) {
         PlayFeedback(feedback_service::FeedbackEvent::kGeminiConnected);
         (void)transcription_retry_service::RetryPending();
+        meeting_service::Kick();
     }
 
     const esp_err_t status_bar_err =
@@ -1554,6 +1710,7 @@ void HandleWifiEvent(const wifi_service::Event& event, void*)
         // reconnect edge too -- RetryPending() is a no-op if nothing is pending or a batch
         // is already in flight, so firing from both edges is safe.
         (void)transcription_retry_service::RetryPending();
+        meeting_service::Kick();
     }
 
     // Region scope, not screen scope. Wi-Fi events fire during and right after the page
@@ -1586,7 +1743,14 @@ void HandleDispatchedButtonEvent(const button_service::ButtonEventInfo& event)
     const app_interaction::InputResult overlay_result =
         input_focus_runtime::HandleButtonEvent(event);
     PlayInteractionFeedback(overlay_result);
-    if (overlay_result.select_modal_submitted) {
+    bool end_meeting_requested = false;
+    if (overlay_result.select_modal_submitted &&
+        meeting_page_runtime::HandleSelectModalSubmit(overlay_result.select_modal_selected_index,
+                                                      &end_meeting_requested)) {
+        if (end_meeting_requested) {
+            EndMeetingFromUser();
+        }
+    } else if (overlay_result.select_modal_submitted) {
         if (!notes_page_runtime::HandleItemActionSelection(
                 overlay_result.select_modal_selected_index) &&
             !todos_page_runtime::HandleItemActionSelection(
@@ -1648,6 +1812,12 @@ void HandleDispatchedButtonEvent(const button_service::ButtonEventInfo& event)
         return;
     }
 
+    // Routed ahead of the storage-busy gate: the meeting writer flushes audio to the SD card
+    // every few seconds, and the end-meeting gesture must not be dropped during a flush.
+    if (HandleMeetingScreenButton(event)) {
+        return;
+    }
+
     if (storage_service::IsWriteBusy()) {
         ESP_LOGI(kTag, "Button ignored while storage write is active");
         return;
@@ -1670,7 +1840,7 @@ void HandleDispatchedButtonEvent(const button_service::ButtonEventInfo& event)
     // stop/cancel on release) is a global recording control, so it must be
     // evaluated before per-screen page input. Taps (single/double click) fall
     // through the switch's default below and are routed to the page handlers.
-    if (event.button == button_service::ButtonId::kAction) {
+    if (event.button == button_service::ButtonId::kAction && !meeting_service::IsActive()) {
         const recording_session_service::Context recording_context =
             BuildRecordingSessionContext();
         bool handled = false;
@@ -1803,6 +1973,9 @@ void ShutdownTask(void*)
         ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
         ESP_LOGW(kTag, "Shutdown request accepted; waiting for power button release settle");
         PlayFeedback(feedback_service::FeedbackEvent::kShutdown);
+        // Get the last of a running meeting's audio onto the SD card before rails drop; the
+        // untranscribed segments resume after the next boot.
+        meeting_service::StopForShutdown();
         vTaskDelay(kPowerButtonReleaseSettleDelay);
         status_bar_runtime::SetShutdownIndicatorVisible(true);
         const esp_err_t status_bar_err = status_bar_runtime::UpdateDisplayStateAndRefreshNow(
@@ -2271,6 +2444,7 @@ void Run()
     InitTranscriptionService();
     InitTranscriptionRetryService();
     InitRecordingSessionService();
+    InitMeetingService();
     InitFooterRuntime();
     StartShutdownTask();
     InitPowerKeyRuntime();

@@ -46,6 +46,8 @@ footer_runtime::FooterFocusItem FooterItemForSelectedIndex(int selected_index)
             return footer_runtime::FooterFocusItem::kHome;
         case 4:
             return footer_runtime::FooterFocusItem::kSticky;
+        case 5:
+            return footer_runtime::FooterFocusItem::kMeeting;
         default:
             return footer_runtime::FooterFocusItem::kNone;
     }
@@ -64,6 +66,8 @@ page_navigation::NavigationItemRole FooterRoleForFooterItem(footer_runtime::Foot
             return page_navigation::NavigationItemRole::kFooterTime;
         case footer_runtime::FooterFocusItem::kSticky:
             return page_navigation::NavigationItemRole::kFooterSticky;
+        case footer_runtime::FooterFocusItem::kMeeting:
+            return page_navigation::NavigationItemRole::kFooterMeeting;
         case footer_runtime::FooterFocusItem::kNone:
         case footer_runtime::FooterFocusItem::kFolder:
         case footer_runtime::FooterFocusItem::kMic:

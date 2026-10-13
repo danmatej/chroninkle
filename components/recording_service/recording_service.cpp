@@ -26,6 +26,9 @@ constexpr uint32_t kMaxRecordingMs = 10000;
 constexpr size_t kCaptureChunkSamples = 480;
 constexpr size_t kClipChunkSamples = 4096;
 constexpr uint32_t kCaptureTaskStackWords = 4096;
+// Meeting-mode stream ring. 8 s of slack lets the SD writer stall (card busy with
+// another write, FAT allocation) without dropping audio; 256 KB of PSRAM.
+constexpr uint32_t kStreamRingMs = 8000;
 
 // The ES8311 codec captures at a single duplex rate; recordings and the Gemini
 // uplink are 16 kHz, so no resampling is needed.
@@ -198,6 +201,37 @@ StopReason s_stop_reason = StopReason::kNone;
 PcmRingBuffer s_preroll_buffer;
 ClipBuffer s_clip_buffer;
 RecordedClipPtr s_last_clip;
+bool s_streaming = false;
+PsramVector<int16_t> s_stream_ring;
+size_t s_stream_read_index = 0;
+size_t s_stream_size = 0;
+size_t s_stream_dropped = 0;
+
+size_t StreamRingCapacitySamples()
+{
+    return static_cast<size_t>(
+        (static_cast<uint64_t>(kSampleRateHz) * kStreamRingMs) / 1000U);
+}
+
+void StreamPushLocked(const int16_t* samples, size_t sample_count)
+{
+    const size_t capacity = s_stream_ring.size();
+    if (capacity == 0 || samples == nullptr) {
+        return;
+    }
+    const size_t space = capacity - s_stream_size;
+    const size_t to_copy = std::min(space, sample_count);
+    s_stream_dropped += sample_count - to_copy;
+    size_t write_index = (s_stream_read_index + s_stream_size) % capacity;
+    size_t copied = 0;
+    while (copied < to_copy) {
+        const size_t run = std::min(to_copy - copied, capacity - write_index);
+        std::memcpy(s_stream_ring.data() + write_index, samples + copied, run * sizeof(int16_t));
+        copied += run;
+        write_index = (write_index + run) % capacity;
+    }
+    s_stream_size += to_copy;
+}
 
 void SetSaveExportActive(bool active);
 
@@ -253,6 +287,7 @@ UiState BuildUiStateLocked()
     state.has_clip = s_has_clip;
     state.saving = s_saving;
     state.exporting = s_exporting;
+    state.streaming = s_streaming;
     state.recorded_samples = s_clip_buffer.sample_count();
     if (s_has_clip && s_last_clip) {
         state.recorded_samples = s_last_clip->sample_count();
@@ -426,7 +461,7 @@ void CaptureTask(void*)
         bool should_capture = false;
         {
             std::lock_guard<std::mutex> lock(s_mutex);
-            should_capture = s_initialized && (s_capture_armed || s_recording);
+            should_capture = s_initialized && (s_capture_armed || s_recording || s_streaming);
         }
 
         if (!should_capture || s_codec == nullptr) {
@@ -446,6 +481,10 @@ void CaptureTask(void*)
         {
             std::lock_guard<std::mutex> lock(s_mutex);
             s_input_level_percent = CalculateInputLevelPercent(samples.data(), read_count);
+
+            if (s_streaming) {
+                StreamPushLocked(samples.data(), read_count);
+            }
 
             if (s_capture_armed) {
                 s_preroll_buffer.Push(samples.data(), read_count);
@@ -603,6 +642,10 @@ esp_err_t Arm()
 
     {
         std::lock_guard<std::mutex> lock(s_mutex);
+        if (s_streaming) {
+            // A meeting owns the mic; press-and-hold must not reset its capture.
+            return ESP_ERR_INVALID_STATE;
+        }
         s_capture_armed = true;
         s_recording = false;
         s_capture_preview = false;
@@ -675,7 +718,7 @@ esp_err_t Finish()
     }
 
     StopPreviewTimer();
-    if (s_codec != nullptr) {
+    if (s_codec != nullptr && !IsStreaming()) {
         s_codec->EnableInput(false);
     }
     ESP_LOGI(kTag, "Recording finished: had_recording=%d", had_recording ? 1 : 0);
@@ -703,7 +746,7 @@ esp_err_t Cancel()
     }
 
     StopPreviewTimer();
-    if (s_codec != nullptr) {
+    if (s_codec != nullptr && !IsStreaming()) {
         s_codec->EnableInput(false);
     }
     ESP_LOGI(kTag, "Recording canceled");
@@ -732,6 +775,101 @@ RecordedClipPtr GetRecordedClip()
 {
     std::lock_guard<std::mutex> lock(s_mutex);
     return s_last_clip;
+}
+
+uint32_t SampleRateHz()
+{
+    return kSampleRateHz;
+}
+
+esp_err_t StartStreaming()
+{
+    esp_err_t err = Init();
+    if (err != ESP_OK) {
+        return err;
+    }
+
+    {
+        std::lock_guard<std::mutex> lock(s_mutex);
+        if (s_streaming) {
+            return ESP_OK;
+        }
+        if (s_capture_armed || s_recording) {
+            return ESP_ERR_INVALID_STATE;
+        }
+        if (s_stream_ring.size() != StreamRingCapacitySamples()) {
+            s_stream_ring.assign(StreamRingCapacitySamples(), 0);
+        }
+        s_stream_read_index = 0;
+        s_stream_size = 0;
+        s_stream_dropped = 0;
+        s_input_level_percent = 0;
+        s_streaming = true;
+    }
+
+    s_codec->EnableInput(true);
+    ESP_LOGI(kTag, "Streaming capture started: ring_ms=%lu",
+             static_cast<unsigned long>(kStreamRingMs));
+    Notify();
+    return ESP_OK;
+}
+
+esp_err_t StopStreaming()
+{
+    bool keep_input = false;
+    size_t dropped = 0;
+    {
+        std::lock_guard<std::mutex> lock(s_mutex);
+        if (!s_streaming) {
+            return ESP_ERR_INVALID_STATE;
+        }
+        s_streaming = false;
+        keep_input = s_capture_armed || s_recording;
+        dropped = s_stream_dropped;
+    }
+
+    if (s_codec != nullptr && !keep_input) {
+        s_codec->EnableInput(false);
+    }
+    ESP_LOGI(kTag, "Streaming capture stopped: dropped_samples=%u",
+             static_cast<unsigned>(dropped));
+    Notify();
+    return ESP_OK;
+}
+
+bool IsStreaming()
+{
+    std::lock_guard<std::mutex> lock(s_mutex);
+    return s_streaming;
+}
+
+size_t ReadStream(int16_t* dst, size_t max_samples)
+{
+    if (dst == nullptr || max_samples == 0) {
+        return 0;
+    }
+    std::lock_guard<std::mutex> lock(s_mutex);
+    const size_t capacity = s_stream_ring.size();
+    if (capacity == 0 || s_stream_size == 0) {
+        return 0;
+    }
+    const size_t to_copy = std::min(max_samples, s_stream_size);
+    size_t copied = 0;
+    while (copied < to_copy) {
+        const size_t run = std::min(to_copy - copied, capacity - s_stream_read_index);
+        std::memcpy(dst + copied, s_stream_ring.data() + s_stream_read_index,
+                    run * sizeof(int16_t));
+        copied += run;
+        s_stream_read_index = (s_stream_read_index + run) % capacity;
+    }
+    s_stream_size -= to_copy;
+    return to_copy;
+}
+
+size_t StreamDroppedSamples()
+{
+    std::lock_guard<std::mutex> lock(s_mutex);
+    return s_stream_dropped;
 }
 
 esp_err_t SaveLastClipWav(const char* path)

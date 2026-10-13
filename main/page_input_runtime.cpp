@@ -2592,17 +2592,20 @@ ButtonResult HandleButtonEventForCurrentScreen(const button_service::ButtonEvent
     const display_service::ScreenId screen = display_service::GetCurrentScreen();
     ButtonResult result = HandleButtonEventForScreen(screen, event);
 
-    // The Sticky footer button is uniform across pages (always opens the sticky overlay), so rather
-    // than thread a per-page intent through every page's activation, handle it centrally: the shared
-    // per-page footer handler only maps Home/Settings/Wifi/Time, so a focused Sticky button falls
-    // through here on a Select single click.
+    // The Sticky and Meeting footer buttons are uniform across pages (open the sticky overlay /
+    // start a meeting), so rather than thread a per-page intent through every page's activation,
+    // handle them centrally: the shared per-page footer handler only maps Home/Settings/Wifi/Time,
+    // so a focused Sticky or Meeting button falls through here on a Select single click.
     if (!result.handled && button_service::IsSelectButton(event.button) &&
-        event.event == button_service::ButtonEvent::kSingleClick &&
-        BuildFooterProjectionForScreen(screen).focused_item ==
-            footer_runtime::FooterFocusItem::kSticky) {
-        result.handled = true;
-        result.interaction_result = MakeConsumedResult(true);
-        result.footer_item = footer_runtime::FooterFocusItem::kSticky;
+        event.event == button_service::ButtonEvent::kSingleClick) {
+        const footer_runtime::FooterFocusItem focused =
+            BuildFooterProjectionForScreen(screen).focused_item;
+        if (focused == footer_runtime::FooterFocusItem::kSticky ||
+            focused == footer_runtime::FooterFocusItem::kMeeting) {
+            result.handled = true;
+            result.interaction_result = MakeConsumedResult(true);
+            result.footer_item = focused;
+        }
     }
     return result;
 }

@@ -31,6 +31,7 @@ enum class EmbeddedIconId : uint8_t {
     kChevronLeft,
     kChevronRight,
     kSticky,
+    kMeeting,
     kClose,
     kDelete,
     kFileAudio,

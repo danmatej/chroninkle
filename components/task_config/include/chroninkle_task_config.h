@@ -36,5 +36,12 @@ inline constexpr UBaseType_t kPriorityTranscriptionRetry = 2;
 // last-good values off the UI path, so a poll that loses a race to SD/display
 // bus activity simply retries on the next cycle without ever blocking a refresh.
 inline constexpr UBaseType_t kPrioritySensorPoll = 2;
+// Meeting-mode SD writer (CPU1): drains recording_service's stream ring to segment WAVs.
+// Above storage/Gemini so a long upload can't starve it, below capture so it never steals
+// time from the I2S read that fills the ring.
+inline constexpr UBaseType_t kPriorityMeetingWriter = 3;
+// Meeting-mode background transcriber (CPU0, network side). Blocks on a Gemini job queued
+// onto gemini_service's worker, so like transcription retry it must be its own task.
+inline constexpr UBaseType_t kPriorityMeetingTranscribe = 2;
 
 }  // namespace chroninkle_task_config

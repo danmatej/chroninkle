@@ -60,6 +60,7 @@ enum class NavigationItemRole : uint8_t {
     kFooterWifi,
     kFooterTime,
     kFooterSticky,
+    kFooterMeeting,
     kSettingsMenuNetwork,
     kSettingsMenuTime,
     kSettingsMenuStorage,

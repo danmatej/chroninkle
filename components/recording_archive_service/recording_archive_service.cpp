@@ -545,6 +545,102 @@ esp_err_t SaveClipOnMountedFilesystem(const char* mount_point, void* context)
     return ESP_OK;
 }
 
+struct SaveTextNoteContext {
+    const char* source_path = nullptr;
+    int64_t created_unix_seconds = 0;
+    uint32_t duration_ms = 0;
+    SaveOptions options = {};
+    SaveResult* result = nullptr;
+};
+
+bool CopyFileContents(const std::string& from, const std::string& to)
+{
+    FILE* in = std::fopen(from.c_str(), "rb");
+    if (in == nullptr) {
+        return false;
+    }
+    FILE* out = std::fopen(to.c_str(), "wb");
+    if (out == nullptr) {
+        std::fclose(in);
+        return false;
+    }
+    std::vector<char> buffer(4096);
+    bool ok = true;
+    size_t read = 0;
+    while ((read = std::fread(buffer.data(), 1, buffer.size(), in)) > 0) {
+        if (std::fwrite(buffer.data(), 1, read, out) != read) {
+            ok = false;
+            break;
+        }
+    }
+    ok = ok && std::ferror(in) == 0;
+    std::fclose(in);
+    ok = (std::fclose(out) == 0) && ok;
+    return ok;
+}
+
+esp_err_t SaveTextNoteOnMountedFilesystem(const char* mount_point, void* context)
+{
+    auto* save = static_cast<SaveTextNoteContext*>(context);
+    if (mount_point == nullptr || save == nullptr || save->source_path == nullptr ||
+        save->result == nullptr) {
+        return ESP_ERR_INVALID_ARG;
+    }
+
+    SaveResult& result = *save->result;
+    const std::string directory = JoinPath(mount_point, ArchiveSubdirectory(save->options.tag));
+    if (!EnsureDirectoryExists(directory)) {
+        result.error_code = "directory_create_failed";
+        result.error_message = "Failed to prepare SD archive directory";
+        return ESP_FAIL;
+    }
+
+    result.recording_id = GenerateRecordingId();
+    const std::string base_path = JoinPath(directory, result.recording_id);
+    result.recording_path = base_path + ".wav";
+    result.transcript_path = base_path + ".txt";
+    result.metadata_path = base_path + ".json";
+
+    // Same FAT volume, so a rename is a cheap directory-entry move. Fall back to a copy
+    // (leaving the source for the caller to clean up) if the rename is refused.
+    if (std::rename(save->source_path, result.transcript_path.c_str()) != 0 &&
+        !CopyFileContents(save->source_path, result.transcript_path)) {
+        result.error_code = "transcript_write_failed";
+        result.error_message = "Failed to move meeting transcript";
+        return ESP_FAIL;
+    }
+    result.transcript_saved = true;
+
+    ArchiveMetadata metadata = {};
+    metadata.recording_id = result.recording_id;
+    metadata.created_unix_seconds = save->created_unix_seconds;
+    metadata.created_local_date =
+        FormatLocalDate(save->created_unix_seconds, &metadata.time_valid);
+    metadata.duration_ms = save->duration_ms;
+    metadata.has_transcript = true;
+    metadata.pending_transcription = false;
+    metadata.tag = save->options.tag;
+
+    const std::string metadata_json = SerializeMetadata(metadata);
+    result.metadata_saved =
+        WriteFileBytes(result.metadata_path, metadata_json.data(), metadata_json.size());
+    if (!result.metadata_saved) {
+        // Put the transcript back so the caller can retry without losing it.
+        (void)std::rename(result.transcript_path.c_str(), save->source_path);
+        result.transcript_saved = false;
+        result.error_code = "metadata_write_failed";
+        result.error_message = "Failed to save recording metadata";
+        return ESP_FAIL;
+    }
+    result.success = true;
+    result.status_message = "Meeting note saved";
+    ESP_LOGI(kTag, "Saved text note: id=%s tag=%s duration_ms=%lu path=%s",
+             result.recording_id.c_str(), TagName(save->options.tag),
+             static_cast<unsigned long>(metadata.duration_ms),
+             result.transcript_path.c_str());
+    return ESP_OK;
+}
+
 struct SaveTranscriptContext {
     const char* recording_id = nullptr;
     const char* transcript = nullptr;
@@ -1327,6 +1423,30 @@ SaveResult SaveClip(const recording_service::RecordedClip& clip, const SaveOptio
     }
     if (result.success) {
         (void)Refresh();  // recompute archive counts + notify subscribers
+    }
+    return result;
+}
+
+SaveResult SaveTextNoteFromFile(const std::string& transcript_path,
+                                int64_t created_unix_seconds,
+                                uint32_t duration_ms,
+                                const SaveOptions& options)
+{
+    SaveResult result = {};
+    SaveTextNoteContext context = {};
+    context.source_path = transcript_path.c_str();
+    context.created_unix_seconds = created_unix_seconds;
+    context.duration_ms = duration_ms;
+    context.options = options;
+    context.result = &result;
+    const esp_err_t err =
+        storage_service::RunWithMountedFilesystem(SaveTextNoteOnMountedFilesystem, &context);
+    if (err != ESP_OK && result.error_code.empty()) {
+        result.error_code = "storage_error";
+        result.error_message = esp_err_to_name(err);
+    }
+    if (result.success) {
+        (void)Refresh();
     }
     return result;
 }

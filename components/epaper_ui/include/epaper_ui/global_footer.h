@@ -19,6 +19,7 @@ enum class GlobalFooterItemId : uint8_t {
     kFolder,
     kMic,
     kSticky,
+    kMeeting,
 };
 
 struct FooterButtonState {
@@ -46,6 +47,7 @@ struct GlobalFooterState {
     FooterButtonState time = {};
     FooterButtonState folder = {};
     FooterButtonState sticky = {};
+    FooterButtonState meeting = {};
     FooterMicState mic = {};
 };
 

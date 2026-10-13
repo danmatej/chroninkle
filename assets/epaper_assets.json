@@ -99,6 +99,10 @@
       "symbol": "kSticky"
     },
     {
+      "path": "assets/icons/meeting.png",
+      "symbol": "kMeeting"
+    },
+    {
       "path": "assets/icons/close.png",
       "symbol": "kClose"
     },

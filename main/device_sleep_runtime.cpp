@@ -20,6 +20,7 @@
 #include "freertos/task.h"
 #include "imu_service.h"
 #include "lock_screen_runtime.h"
+#include "meeting_service.h"
 #include "recording_service.h"
 #include "status_bar_runtime.h"
 #include "waveshare_board_config.h"
@@ -142,9 +143,14 @@ device_sleep_service::BlockerReason GetAutoSleepBlocker(void*)
         if (recording_state.saving || recording_state.exporting) {
             return device_sleep_service::BlockerReason::kRecordingSaving;
         }
-        if (recording_state.armed || recording_state.recording) {
+        if (recording_state.armed || recording_state.recording || recording_state.streaming) {
             return device_sleep_service::BlockerReason::kRecordingActive;
         }
+    }
+
+    // A meeting segment upload in flight would be cut off by light sleep; let it land.
+    if (meeting_service::IsTranscribing()) {
+        return device_sleep_service::BlockerReason::kRecordingSaving;
     }
 
     // Clip playback runs with no user input for up to the clip's length -- both the

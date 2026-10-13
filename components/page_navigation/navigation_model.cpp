@@ -33,6 +33,7 @@ void AddFooterItems(NavigationModel& model, bool is_home_screen)
         // roving focus landing on an icon the user can't see.
         AddItem(model, NavigationItemSection::kFooter, NavigationItemRole::kFooterSettings, 1);
         AddItem(model, NavigationItemSection::kFooter, NavigationItemRole::kFooterSticky, 4);
+        AddItem(model, NavigationItemSection::kFooter, NavigationItemRole::kFooterMeeting, 5);
     } else {
         AddItem(model, NavigationItemSection::kFooter, NavigationItemRole::kFooterHome, 0);
     }

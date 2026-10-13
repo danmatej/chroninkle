@@ -18,6 +18,7 @@ broadcasts its Wi-Fi setup hotspot under the old name until it's reflashed.
 - [At a glance: the buttons](#at-a-glance-the-buttons)
 - [First-time setup](#first-time-setup)
 - [Recording a thought](#recording-a-thought)
+- [Recording a meeting](#recording-a-meeting)
 - [The Home screen](#the-home-screen)
 - [Notes, Todos, and Follow-up](#notes-todos-and-follow-up)
 - [Viewing a recording's details](#viewing-a-recordings-details)
@@ -122,6 +123,50 @@ This is the core interaction:
 card — it just gets marked as pending. The moment Chroninkle reconnects to
 WiFi, it automatically retries every pending recording. A small badge on
 the status bar shows how many are waiting.
+
+## Recording a meeting
+
+For anything longer than a quick thought ? a meeting, a lecture, a long
+conversation ? use **Meeting** mode instead of holding the button.
+
+1. On **Home**, move focus down to the icons at the bottom of the screen and
+   select the **Meeting** icon (next to Sticky). You'll hear the recording
+   start sound and the **Meeting** screen appears.
+2. Put the device down and let it listen. You don't need to hold anything.
+   The screen shows how long the meeting has been running (updated once a
+   minute), how many parts have been transcribed so far, and the last few
+   lines of the transcript.
+3. To finish, press **Select** (the rocker) or tap **ACTION**, then choose
+   **End & save**. **Keep recording** (or tapping ACTION again) closes the
+   question and carries on recording.
+
+**How it works:** the audio is saved to the SD card in one-minute parts.
+While the next part records, the previous one is sent to Gemini, its text is
+added to the meeting's transcript, and the audio for that part is deleted,
+so the card doesn't fill up and the device's memory use stays the same
+however long the meeting runs.
+
+**When it's done**, the whole meeting becomes a single **Note** titled with
+the meeting's date, time and length. It appears once the last part has been
+transcribed, usually within a minute of ending, and you'll see a "Meeting
+note saved" message. If nobody spoke, you'll see "No speech was detected in
+the meeting" and no note is created.
+
+**Offline or a failed upload?** Nothing is lost. Parts that haven't been
+transcribed stay on the SD card and are retried automatically ? when WiFi
+comes back, and again after a restart. The Meeting screen shows "Waiting
+for Wi-Fi" while it's holding parts back. A part that keeps failing is moved
+aside to a `meetings/failed` folder on the card so the rest of the meeting
+can still be saved.
+
+**Things to know:**
+
+- Meeting mode needs an SD card with at least about 16 MB free.
+- The device won't go to sleep while a meeting is recording or while its
+  parts are still being transcribed.
+- Press-and-hold recording is turned off while a meeting is running.
+- If you shut the device down mid-meeting, the audio recorded so far is
+  kept and transcribed after the next start-up.
 
 ## The Home screen
 

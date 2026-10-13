@@ -96,4 +96,15 @@ menu "Chroninkle Settings"
             archiving ("Never"). Overridden by a runtime NVS setting once
             changed from the Settings page.
 
+    config CHRONINKLE_MEETING_SEGMENT_SECONDS
+        int "Meeting mode segment length (seconds)"
+        range 15 120
+        default 60
+        help
+            Meeting mode streams audio to the SD card in segments of this length.
+            Each finished segment is transcribed in the background and its WAV
+            deleted once the text is saved. Shorter segments upload faster and
+            lose less on failure; longer ones mean fewer Gemini requests and
+            fewer mid-sentence cuts.
+
 endmenu

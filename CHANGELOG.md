@@ -8,6 +8,19 @@ via `git log`, not backfilled here.
 
 ## [Unreleased]
 
+## [1.2.0] - 2026-09-26
+
+### Added
+
+- **Meeting mode**: a new Meeting icon in the Home footer (next to Sticky)
+  starts hands-free recording ? no holding the button. Audio streams to the
+  SD card in one-minute parts; each part is transcribed by Gemini in the
+  background while the next one records, its text appended to one meeting
+  transcript and its audio deleted. Ending the meeting (Select or ACTION,
+  then **End & save**) saves the whole transcript as a single Note. Parts
+  that can't be transcribed (offline, upload errors) stay on the card and
+  are retried automatically, including after a restart.
+
 ## [1.1.0] - 2026-09-25
 
 ### Added

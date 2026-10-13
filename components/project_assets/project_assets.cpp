@@ -66,6 +66,8 @@ const EmbeddedImageAsset* GetIcon(EmbeddedIconId id)
             return &epaper_icons::kChevronRight;
         case EmbeddedIconId::kSticky:
             return &epaper_icons::kSticky;
+        case EmbeddedIconId::kMeeting:
+            return &epaper_icons::kMeeting;
         case EmbeddedIconId::kClose:
             return &epaper_icons::kClose;
         case EmbeddedIconId::kDelete:
