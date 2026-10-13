@@ -16,6 +16,9 @@ idf_component_register(SRCS "onboarding_page_runtime.cpp" "onboarding_page_inter
                             "settings_about_page_runtime.cpp"
                             "settings_about_page_interactions.cpp"
                             "settings_about_page_coordinator.cpp"
+                            "settings_sound_page_runtime.cpp"
+                            "settings_sound_page_interactions.cpp"
+                            "settings_sound_page_coordinator.cpp"
                             "settings_todos_page_runtime.cpp"
                             "settings_todos_page_interactions.cpp"
                             "settings_todos_page_coordinator.cpp"
@@ -40,7 +43,7 @@ idf_component_register(SRCS "onboarding_page_runtime.cpp" "onboarding_page_inter
                                 esp_hw_support esp_partition gemini_service imu_service power_service
                                 nvs_flash page_navigation playback_service project_assets
                                 recording_archive_service
-                                recording_service recording_session_service storage_service
+                                recording_service recording_session_service sound_settings storage_service
                                 summary_service task_config text_reader_service timezone_service
                                 topic_service
                                 transcription_retry_service transcription_service wifi_service)

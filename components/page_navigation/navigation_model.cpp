@@ -83,11 +83,13 @@ NavigationModel BuildSettingsPageNavigationModel()
     AddItem(model, NavigationItemSection::kSettingsPageMenu,
             NavigationItemRole::kSettingsMenuTopics, 4);
     AddItem(model, NavigationItemSection::kSettingsPageMenu,
-            NavigationItemRole::kSettingsMenuAbout, 5);
+            NavigationItemRole::kSettingsMenuSound, 5);
+    AddItem(model, NavigationItemSection::kSettingsPageMenu,
+            NavigationItemRole::kSettingsMenuAbout, 6);
     AddItem(model,
             NavigationItemSection::kSettingsPageMenu,
             NavigationItemRole::kSettingsManualOnboardingButton,
-            6);
+            7);
     AddFooterItems(model, /*is_home_screen=*/false);
     return model;
 }
@@ -182,6 +184,21 @@ NavigationModel BuildSettingsAboutPageNavigationModel()
 
     AddItem(model, NavigationItemSection::kSettingsAboutPageControls,
             NavigationItemRole::kSettingsAboutBackButton, 0);
+    AddFooterItems(model, /*is_home_screen=*/false);
+    return model;
+}
+
+NavigationModel BuildSettingsSoundPageNavigationModel(int toggle_count)
+{
+    NavigationModel model = {};
+    model.scope = NavigationScope::kSettingsSound;
+
+    for (int index = 0; index < toggle_count; ++index) {
+        AddItem(model, NavigationItemSection::kSettingsSoundPageControls,
+                NavigationItemRole::kSettingsSoundToggle, index);
+    }
+    AddItem(model, NavigationItemSection::kSettingsSoundPageControls,
+            NavigationItemRole::kSettingsSoundBackButton, toggle_count);
     AddFooterItems(model, /*is_home_screen=*/false);
     return model;
 }

@@ -273,7 +273,7 @@ storage, from Settings > Storage) and they'll show up here.
 
 ## Settings
 
-Settings is a hub, like a phone's settings app: six headings, each
+Settings is a hub, like a phone's settings app: seven headings, each
 opening its own page, plus one action below them:
 
 - **Network** — WiFi and Access Point.
@@ -281,6 +281,7 @@ opening its own page, plus one action below them:
 - **Storage** — SD card status and management.
 - **Todos** — todo archiving.
 - **Topics** — create, rename, and delete topics.
+- **Sound** — turn sounds on or off, all at once or one kind at a time.
 - **About** — firmware version and acknowledgments.
 - **Manual** — replays the first-time onboarding carousel. This one isn't
   a heading — it's a direct action, since there's nothing to configure on
@@ -333,6 +334,16 @@ active list before auto-archiving (see [Archiving completed
 Todos](#archiving-completed-todos)). Choices are 7, 14, 30, 60, or 90
 days, or **Never** to turn off automatic archiving entirely (you can
 still archive individual items manually). Default is 7 days.
+
+### Sound
+
+**All sounds** at the top turns every sound effect on or off. Below it,
+each kind of sound has its own toggle: button clicks, notifications,
+errors, lock/unlock, startup, the online chime, the recording start and
+stop cues, and the automatic replay after a recording. A sound plays only
+when both **All sounds** and its own toggle are on. Turning off the replay
+skips straight to tagging after you record. Playing a clip yourself from a
+note's details page is never muted.
 
 ### About
 

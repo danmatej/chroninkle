@@ -2,6 +2,7 @@
 
 #include "esp_log.h"
 #include "waveshare_board.h"
+#include "sound_settings.h"
 #include "system_sound_service.h"
 
 namespace feedback_service {
@@ -38,6 +39,33 @@ SoundCue CueForEvent(FeedbackEvent event)
     }
 }
 
+// Several events share one cue (e.g. kInterrupt is both "error" and "recording stop"), so the
+// user-facing Settings > Sound categories are keyed by event rather than by cue.
+sound_settings::Category CategoryForEvent(FeedbackEvent event)
+{
+    switch (event) {
+        case FeedbackEvent::kStartup:
+            return sound_settings::Category::kStartup;
+        case FeedbackEvent::kGeminiConnected:
+            return sound_settings::Category::kOnline;
+        case FeedbackEvent::kLock:
+        case FeedbackEvent::kUnlock:
+            return sound_settings::Category::kLockUnlock;
+        case FeedbackEvent::kRecordingStart:
+            return sound_settings::Category::kRecordingStart;
+        case FeedbackEvent::kModalOpen:
+        case FeedbackEvent::kShutdown:
+            return sound_settings::Category::kNotifications;
+        case FeedbackEvent::kButtonClick:
+        case FeedbackEvent::kButtonDoubleClick:
+        case FeedbackEvent::kButtonLongPress:
+            return sound_settings::Category::kButtons;
+        case FeedbackEvent::kError:
+        default:
+            return sound_settings::Category::kErrors;
+    }
+}
+
 }  // namespace
 
 esp_err_t Init()
@@ -56,6 +84,9 @@ esp_err_t Init()
 
 esp_err_t Play(FeedbackEvent event)
 {
+    if (!sound_settings::ShouldPlay(CategoryForEvent(event))) {
+        return ESP_OK;
+    }
     SystemSoundService::GetInstance().PlayCue(CueForEvent(event));
     return ESP_OK;
 }

@@ -1,5 +1,6 @@
 idf_component_register(SRCS "feedback_service.cpp"
                        INCLUDE_DIRS "include"
-                       REQUIRES board system_sound_service)
+                       REQUIRES board system_sound_service
+                       PRIV_REQUIRES sound_settings)
 
 target_compile_features(${COMPONENT_LIB} PUBLIC cxx_std_17)

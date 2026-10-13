@@ -2,7 +2,7 @@ idf_component_register(
     SRCS "recording_session_service.cpp"
     INCLUDE_DIRS "include"
     REQUIRES feedback_service gemini_service playback_service recording_archive_service
-             recording_service storage_service system_sound_service task_config
+             recording_service sound_settings storage_service system_sound_service task_config
              topic_service transcription_service
 )
 

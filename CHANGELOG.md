@@ -8,6 +8,16 @@ via `git log`, not backfilled here.
 
 ## [Unreleased]
 
+## [1.1.0] - 2026-09-25
+
+### Added
+
+- A new **Sound** page under Settings: an **All sounds** master toggle plus
+  individual toggles for button clicks, notifications, errors, lock/unlock,
+  startup, online chime, recording start/stop cues and the post-recording
+  replay. Choices persist across reboots. Playing a clip yourself from a
+  note's details page is never muted.
+
 ## [1.0.0] - 2026-09-24
 
 This is the last planned release before v2, a complete front-end rewrite

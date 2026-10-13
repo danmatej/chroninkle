@@ -25,6 +25,7 @@ enum class NavigationScope : uint8_t {
     kSettingsTopics,
     kSettingsAbout,
     kBookList,
+    kSettingsSound,
 };
 
 enum class NavigationItemSection : uint8_t {
@@ -49,6 +50,7 @@ enum class NavigationItemSection : uint8_t {
     kSettingsTopicsPageControls,
     kSettingsAboutPageControls,
     kBookListPageControls,
+    kSettingsSoundPageControls,
 };
 
 enum class NavigationItemRole : uint8_t {
@@ -111,6 +113,9 @@ enum class NavigationItemRole : uint8_t {
     kOnboardingPagePrev,
     kOnboardingPageNext,
     kBookListBookRow,
+    kSettingsMenuSound,
+    kSettingsSoundToggle,
+    kSettingsSoundBackButton,
 };
 
 struct NavigationItemDescriptor {
@@ -136,6 +141,8 @@ NavigationModel BuildSettingsStoragePageNavigationModel();
 NavigationModel BuildSettingsTodosPageNavigationModel();
 NavigationModel BuildSettingsTopicsPageNavigationModel(int topic_count);
 NavigationModel BuildSettingsAboutPageNavigationModel();
+// toggle_count toggle rows (item_index = row), then Back.
+NavigationModel BuildSettingsSoundPageNavigationModel(int toggle_count);
 NavigationModel BuildDashboardPageNavigationModel();
 NavigationModel BuildTopicsBrowsePageNavigationModel(int topic_count);
 // with_summarize adds a focusable Summarize button (shown only once the topic has at least one

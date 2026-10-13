@@ -12,10 +12,10 @@ constexpr auto kTitleRole = design::TypographyRole::kHeadingH1;
 constexpr int kSideInset = design::spacing::k16;
 constexpr int kTopGap = design::spacing::k16;
 constexpr int kTitleBottomGap = design::spacing::k24;
-constexpr int kMenuManualGap = design::spacing::k24;
+constexpr int kMenuManualGap = design::spacing::k16;
 
 constexpr std::array<const char*, kSettingsMenuItemCount> kSettingsMenuLabels = {
-    "Network", "Time", "Storage", "Todos", "Topics", "About",
+    "Network", "Time", "Storage", "Todos", "Topics", "Sound", "About",
 };
 
 int PageWidth(int portrait_width)

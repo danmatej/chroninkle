@@ -8,6 +8,7 @@
 #include "epaper_ui/keyboard.h"
 #include "epaper_ui/settings_page.h"
 #include "epaper_ui/settings_about_page.h"
+#include "epaper_ui/settings_sound_page.h"
 #include "epaper_ui/settings_storage_page.h"
 #include "epaper_ui/settings_todos_page.h"
 #include "epaper_ui/settings_topics_page.h"
@@ -51,6 +52,7 @@ enum class ScreenId {
     kLockScreen,
     kBookList,
     kBookReader,
+    kSettingsSound,
 };
 
 enum class RefreshMode {
@@ -109,6 +111,7 @@ esp_err_t SetSettingsStoragePageState(const epaper_ui::SettingsStoragePageState&
 esp_err_t SetSettingsTodosPageState(const epaper_ui::SettingsTodosPageState& state);
 esp_err_t SetSettingsTopicsPageState(const epaper_ui::SettingsTopicsPageState& state);
 esp_err_t SetSettingsAboutPageState(const epaper_ui::SettingsAboutPageState& state);
+esp_err_t SetSettingsSoundPageState(const epaper_ui::SettingsSoundPageState& state);
 esp_err_t SetWifiPageState(const epaper_ui::WifiPageState& state);
 esp_err_t SetTimePageState(const epaper_ui::TimePageState& state);
 esp_err_t SetDashboardPageState(const epaper_ui::DashboardPageState& state);

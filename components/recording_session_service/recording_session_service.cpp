@@ -13,6 +13,7 @@
 #include "freertos/task.h"
 #include "gemini_service.h"
 #include "playback_service.h"
+#include "sound_settings.h"
 #include "storage_service.h"
 #include "system_sound_service.h"
 #include "topic_service.h"
@@ -342,6 +343,11 @@ void HandleStopCueResult(uint32_t token, SoundCuePlaybackResult result)
         return;
     }
 
+    if (!sound_settings::ShouldPlay(sound_settings::Category::kRecordingReplay)) {
+        AdvanceToTagSelection("replay disabled");
+        return;
+    }
+
     clip = recording_service::GetRecordedClip();
     if (!StartClipPlayback(clip)) {
         AdvanceToTagSelection("playback unavailable");
@@ -622,6 +628,10 @@ bool HandlePowerLongPressStart(const Context& context)
         NotifyLocked();
     }
 
+    if (!sound_settings::ShouldPlay(sound_settings::Category::kRecordingStart)) {
+        HandleStartCueResult(cue_token, SoundCuePlaybackResult::kCompleted);
+        return true;
+    }
     SystemSoundService::GetInstance().PlayCue(
         SoundCue::kSpeaking, [cue_token](SoundCuePlaybackResult result) {
             HandleStartCueResult(cue_token, result);
@@ -897,7 +907,10 @@ void HandleRecordingEvent(const recording_service::Event& event)
     if (discard_invalid_clip) {
         recording_service::DiscardClip();
     }
-    if (queue_stop_cue) {
+    if (queue_stop_cue && !sound_settings::ShouldPlay(sound_settings::Category::kRecordingStop)) {
+        // Report the silent cue as completed so the replay/tag-selection flow is unchanged.
+        HandleStopCueResult(cue_token, SoundCuePlaybackResult::kCompleted);
+    } else if (queue_stop_cue) {
         SystemSoundService::GetInstance().PlayCue(
             SoundCue::kInterrupt, [cue_token](SoundCuePlaybackResult result) {
                 HandleStopCueResult(cue_token, result);
