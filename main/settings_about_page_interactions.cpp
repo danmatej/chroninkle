@@ -7,9 +7,22 @@ using page_navigation::NavigationItemRole;
 
 }  // namespace
 
-ActivateResult HandlePrimaryActivate(const SettingsAboutPageCoordinator& coordinator)
+ActivateResult HandlePrimaryActivate(SettingsAboutPageCoordinator& coordinator)
 {
     ActivateResult result = {};
+
+    if (coordinator.IsRoleFocused(NavigationItemRole::kSettingsAboutResetUsageButton)) {
+        result.handled = true;
+        result.play_activate_cue = true;
+        if (coordinator.reset_usage_armed()) {
+            coordinator.DisarmResetUsage();
+            result.intent = ActivateIntent::kResetUsage;
+        } else {
+            coordinator.ArmResetUsage();
+            result.intent = ActivateIntent::kRefreshPage;
+        }
+        return result;
+    }
 
     if (coordinator.IsRoleFocused(NavigationItemRole::kSettingsAboutBackButton)) {
         // Returns to the Settings hub -- this page is only ever reached from there, so there's
@@ -40,6 +53,16 @@ void ApplyPrimaryActivateResult(const ActivateResult& result, const ActivateCall
         case ActivateIntent::kShowSettings:
             if (callbacks.show_settings) {
                 callbacks.show_settings();
+            }
+            break;
+        case ActivateIntent::kRefreshPage:
+            if (callbacks.refresh_page) {
+                callbacks.refresh_page();
+            }
+            break;
+        case ActivateIntent::kResetUsage:
+            if (callbacks.reset_usage) {
+                callbacks.reset_usage();
             }
             break;
         case ActivateIntent::kNone:

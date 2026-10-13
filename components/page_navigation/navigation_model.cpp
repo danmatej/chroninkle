@@ -86,11 +86,13 @@ NavigationModel BuildSettingsPageNavigationModel()
     AddItem(model, NavigationItemSection::kSettingsPageMenu,
             NavigationItemRole::kSettingsMenuSound, 5);
     AddItem(model, NavigationItemSection::kSettingsPageMenu,
-            NavigationItemRole::kSettingsMenuAbout, 6);
+            NavigationItemRole::kSettingsMenuDisplay, 6);
+    AddItem(model, NavigationItemSection::kSettingsPageMenu,
+            NavigationItemRole::kSettingsMenuAbout, 7);
     AddItem(model,
             NavigationItemSection::kSettingsPageMenu,
             NavigationItemRole::kSettingsManualOnboardingButton,
-            7);
+            8);
     AddFooterItems(model, /*is_home_screen=*/false);
     return model;
 }
@@ -184,7 +186,9 @@ NavigationModel BuildSettingsAboutPageNavigationModel()
     model.scope = NavigationScope::kSettingsAbout;
 
     AddItem(model, NavigationItemSection::kSettingsAboutPageControls,
-            NavigationItemRole::kSettingsAboutBackButton, 0);
+            NavigationItemRole::kSettingsAboutResetUsageButton, 0);
+    AddItem(model, NavigationItemSection::kSettingsAboutPageControls,
+            NavigationItemRole::kSettingsAboutBackButton, 1);
     AddFooterItems(model, /*is_home_screen=*/false);
     return model;
 }
@@ -200,6 +204,18 @@ NavigationModel BuildSettingsSoundPageNavigationModel(int toggle_count)
     }
     AddItem(model, NavigationItemSection::kSettingsSoundPageControls,
             NavigationItemRole::kSettingsSoundBackButton, toggle_count);
+    AddFooterItems(model, /*is_home_screen=*/false);
+    return model;
+}
+
+NavigationModel BuildSettingsDisplayPageNavigationModel()
+{
+    NavigationModel model = {};
+    model.scope = NavigationScope::kSettingsDisplay;
+    AddItem(model, NavigationItemSection::kSettingsDisplayPageControls,
+            NavigationItemRole::kSettingsDisplayCleanup, 0);
+    AddItem(model, NavigationItemSection::kSettingsDisplayPageControls,
+            NavigationItemRole::kSettingsDisplayBackButton, 1);
     AddFooterItems(model, /*is_home_screen=*/false);
     return model;
 }

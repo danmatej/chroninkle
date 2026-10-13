@@ -1,19 +1,39 @@
 #include "settings_about_page_coordinator.h"
 
 #include <cstdio>
+#include <string>
 
 #include "esp_app_desc.h"
+#include "gemini_service.h"
+
+namespace {
+
+std::string FormatCount(uint64_t value)
+{
+    std::string digits = std::to_string(value);
+    for (int i = static_cast<int>(digits.size()) - 3; i > 0; i -= 3) {
+        digits.insert(static_cast<size_t>(i), ",");
+    }
+    return digits;
+}
+
+}  // namespace
 
 SettingsAboutPageCoordinator::SettingsAboutPageCoordinator() = default;
 
 void SettingsAboutPageCoordinator::Show()
 {
     focus_.Configure(navigation_model_.item_count, 0);
+    reset_usage_armed_ = false;
 }
 
 bool SettingsAboutPageCoordinator::MoveFocus(int delta)
 {
-    return focus_.Move(delta);
+    if (!focus_.Move(delta)) {
+        return false;
+    }
+    reset_usage_armed_ = false;
+    return true;
 }
 
 bool SettingsAboutPageCoordinator::SetFocusIndex(int index)
@@ -38,6 +58,18 @@ epaper_ui::SettingsAboutPageState SettingsAboutPageCoordinator::BuildState() con
     std::snprintf(version_buffer, sizeof(version_buffer), "Version %s",
                  esp_app_get_description()->version);
     state.version_text = version_buffer;
+
+    const gemini_service::UsageStats usage = gemini_service::GetUsageStats();
+    state.usage_lines[0] = "Today: " + FormatCount(usage.today_tokens) + " tokens";
+    state.usage_lines[1] = "This month: " + FormatCount(usage.month_tokens) + " tokens";
+    state.usage_lines[2] = "All time: " + FormatCount(usage.total_tokens) + " tokens (" +
+                           FormatCount(usage.total_requests) + " requests)";
+
+    state.reset_usage = {
+        .label_text = reset_usage_armed_ ? "Press again to reset" : "Reset usage",
+        .selected =
+            IsRoleFocused(page_navigation::NavigationItemRole::kSettingsAboutResetUsageButton),
+    };
 
     state.back = {
         .label_text = "Back",

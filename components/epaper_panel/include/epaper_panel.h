@@ -1,6 +1,7 @@
 #ifndef EPAPER_PANEL_H_
 #define EPAPER_PANEL_H_
 
+#include <atomic>
 #include <cstdint>
 
 #include "driver/gpio.h"
@@ -74,6 +75,10 @@ public:
     // contrast has started to fade enough to warrant a full re-drive. Does not force
     // anything by itself -- it's up to the caller to decide when to act on it.
     bool NeedsGhostingFlush() const;
+    // Soft budget of consecutive partial refreshes before NeedsGhostingFlush() turns true
+    // (default 8). The inline hard ceiling scales with it (2.5x). Safe to call from any task.
+    void SetPartialRefreshBudget(int partial_refreshes);
+    int partial_refresh_budget() const { return partial_refresh_budget_.load(); }
 
 private:
     esp_err_t InitSpiPort();
@@ -112,6 +117,7 @@ private:
     bool base_image_initialized_ = false;
     bool wake_refresh_pending_ = false;
     int partial_refresh_count_ = 0;
+    std::atomic<int> partial_refresh_budget_{8};
     EpaperPanelMetrics metrics_ = {};
 };
 

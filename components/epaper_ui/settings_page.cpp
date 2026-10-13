@@ -11,11 +11,11 @@ namespace {
 constexpr auto kTitleRole = design::TypographyRole::kHeadingH1;
 constexpr int kSideInset = design::spacing::k16;
 constexpr int kTopGap = design::spacing::k16;
-constexpr int kTitleBottomGap = design::spacing::k24;
+constexpr int kTitleBottomGap = design::spacing::k16;
 constexpr int kMenuManualGap = design::spacing::k16;
 
 constexpr std::array<const char*, kSettingsMenuItemCount> kSettingsMenuLabels = {
-    "Network", "Time", "Storage", "Todos", "Topics", "Sound", "About",
+    "Network", "Time", "Storage", "Todos", "Topics", "Sound", "Display", "About",
 };
 
 int PageWidth(int portrait_width)
@@ -34,7 +34,9 @@ MenuContainerStyle MenuStyle(int width)
     style.direction = MenuContainerDirection::kVertical;
     style.sizing = MenuContainerSizing::kFixedItemExtent;
     style.width = width;
-    style.item_height = design::menu_item::kHeight;
+    // Eight headings plus Manual must clear the footer, so rows are a little shorter than the
+    // standard menu item.
+    style.item_height = design::menu_item::kHeight - design::spacing::k12;
     style.item_gap = 0;
     return style;
 }

@@ -44,6 +44,8 @@
 #include "settings_page_runtime.h"
 #include "settings_about_page_runtime.h"
 #include "settings_sound_page_runtime.h"
+#include "settings_display_page_runtime.h"
+#include "display_settings.h"
 #include "settings_storage_page_runtime.h"
 #include "settings_todos_page_runtime.h"
 #include "settings_topics_page_runtime.h"
@@ -405,6 +407,28 @@ esp_err_t ShowSettingsSoundScreen(display_service::RefreshMode refresh_mode)
                                              refresh_mode, "show_settings_sound_screen");
 }
 
+esp_err_t ShowSettingsDisplayScreen(display_service::RefreshMode refresh_mode)
+{
+    SyncStatusBarState("show_settings_display_screen");
+    page_input_runtime::ResetFocusForScreen(display_service::ScreenId::kSettingsDisplay);
+    footer_runtime::SetLayoutState(
+        FooterLayoutForScreen(display_service::ScreenId::kSettingsDisplay));
+    footer_runtime::SetProjectionState(page_input_runtime::BuildFooterProjectionForScreen(
+        display_service::ScreenId::kSettingsDisplay));
+    const esp_err_t footer_err = footer_runtime::UpdateDisplayState();
+    if (footer_err != ESP_OK && footer_err != ESP_ERR_INVALID_STATE) {
+        ESP_LOGW(kTag, "Footer sync before settings display screen failed: %s",
+                 esp_err_to_name(footer_err));
+    }
+    const esp_err_t page_err = settings_display_page_runtime::UpdateDisplayState();
+    if (page_err != ESP_OK && page_err != ESP_ERR_INVALID_STATE) {
+        ESP_LOGW(kTag, "Settings display page sync before show failed: %s",
+                 esp_err_to_name(page_err));
+    }
+    return display_service::SetCurrentScreen(display_service::ScreenId::kSettingsDisplay,
+                                             refresh_mode, "show_settings_display_screen");
+}
+
 // Polls the deferred storage/todos/topics/about-heading requests from the Settings hub (set by
 // page_input_runtime's show_storage/show_todos/show_topics/show_about callbacks) -- deferred so
 // the screen change happens after input dispatch, not mid-dispatch, same reasoning as
@@ -436,6 +460,13 @@ void ShowSettingsSubPageIfRequested()
         const esp_err_t err = ShowSettingsSoundScreen(display_service::RefreshMode::kPartial);
         if (err != ESP_OK && err != ESP_ERR_INVALID_STATE) {
             ESP_LOGW(kTag, "Show settings sound screen failed: %s", esp_err_to_name(err));
+        }
+        return;
+    }
+    if (settings_page_runtime::ConsumePendingShowDisplay()) {
+        const esp_err_t err = ShowSettingsDisplayScreen(display_service::RefreshMode::kPartial);
+        if (err != ESP_OK && err != ESP_ERR_INVALID_STATE) {
+            ESP_LOGW(kTag, "Show settings display screen failed: %s", esp_err_to_name(err));
         }
         return;
     }
@@ -1359,6 +1390,7 @@ void HandleRecordingSessionEvent(const recording_session_service::Event& event, 
             time_page_runtime::ClearPendingSelectModal();
             meeting_page_runtime::ClearPendingSelectModal();
             settings_todos_page_runtime::ClearPendingSelectModal();
+            settings_display_page_runtime::ClearPendingSelectModal();
             const esp_err_t err =
                 overlay_runtime::ShowSelectModal(BuildRecordingTagSelectModalState());
             FlushOverlayFeedback();
@@ -1761,6 +1793,8 @@ void HandleDispatchedButtonEvent(const button_service::ButtonEventInfo& event)
                 overlay_result.select_modal_selected_index) &&
             !settings_todos_page_runtime::HandleSelectModalSubmit(
                 overlay_result.select_modal_selected_index) &&
+            !settings_display_page_runtime::HandleSelectModalSubmit(
+                overlay_result.select_modal_selected_index) &&
             !settings_topics_page_runtime::HandleItemActionSelection(
                 overlay_result.select_modal_selected_index) &&
             !book_list_page_runtime::HandleItemActionSelection(
@@ -2051,6 +2085,9 @@ void InitFeedbackService()
 
 void InitDisplayService()
 {
+    // Apply the saved screen-cleanup frequency before the first partial refresh can count
+    // against the panel's ghosting budget.
+    display_service::SetCleanupInterval(display_settings::GetCleanupInterval());
     const esp_err_t err = display_service::Init();
     if (err != ESP_OK) {
         ESP_LOGW(kTag, "Display service init failed: %s", esp_err_to_name(err));

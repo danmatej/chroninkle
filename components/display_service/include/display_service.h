@@ -9,6 +9,7 @@
 #include "epaper_ui/settings_page.h"
 #include "epaper_ui/settings_about_page.h"
 #include "epaper_ui/settings_sound_page.h"
+#include "epaper_ui/settings_display_page.h"
 #include "epaper_ui/meeting_page.h"
 #include "epaper_ui/settings_storage_page.h"
 #include "epaper_ui/settings_todos_page.h"
@@ -55,6 +56,7 @@ enum class ScreenId {
     kBookReader,
     kSettingsSound,
     kMeeting,
+    kSettingsDisplay,
 };
 
 enum class RefreshMode {
@@ -102,6 +104,10 @@ OverlayRefreshPolicy MergeOverlayRefreshPolicy(OverlayRefreshPolicy lhs,
                                                OverlayRefreshPolicy rhs);
 
 esp_err_t Init();
+// Number of partial (fast) updates the panel accepts before display_service schedules a
+// full-screen cleanup refresh at the next idle gap. Takes effect immediately.
+void SetCleanupInterval(int partial_refreshes);
+int GetCleanupInterval();
 bool IsInitialized();
 int PortraitWidth();
 int PortraitHeight();
@@ -114,6 +120,7 @@ esp_err_t SetSettingsTodosPageState(const epaper_ui::SettingsTodosPageState& sta
 esp_err_t SetSettingsTopicsPageState(const epaper_ui::SettingsTopicsPageState& state);
 esp_err_t SetSettingsAboutPageState(const epaper_ui::SettingsAboutPageState& state);
 esp_err_t SetSettingsSoundPageState(const epaper_ui::SettingsSoundPageState& state);
+esp_err_t SetSettingsDisplayPageState(const epaper_ui::SettingsDisplayPageState& state);
 esp_err_t SetMeetingPageState(const epaper_ui::MeetingPageState& state);
 esp_err_t SetWifiPageState(const epaper_ui::WifiPageState& state);
 esp_err_t SetTimePageState(const epaper_ui::TimePageState& state);

@@ -1,5 +1,5 @@
 idf_component_register(
-    SRCS "gemini_service.cpp"
+    SRCS "gemini_service.cpp" "gemini_usage.cpp"
     INCLUDE_DIRS "include"
     REQUIRES esp_http_client esp_http_server esp-tls esp_hw_support esp_timer json mbedtls nvs_flash recording_service task_config
 )

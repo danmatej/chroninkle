@@ -12,17 +12,22 @@ namespace {
 constexpr auto kTitleRole = design::TypographyRole::kHeadingH1;
 constexpr auto kVersionRole = design::TypographyRole::kLabelLarge;
 constexpr auto kBodyRole = design::TypographyRole::kBody;
+constexpr auto kUsageHeadingRole = design::TypographyRole::kLabelMediumBlack;
 constexpr int kSideInset = design::spacing::k16;
-constexpr int kTopGap = design::spacing::k24;
-constexpr int kHeadingBottomPadding = design::spacing::k24;
-constexpr int kVersionBodyGap = design::spacing::k24;
+constexpr int kTopGap = design::spacing::k16;
+constexpr int kHeadingBottomPadding = design::spacing::k16;
+constexpr int kSectionGap = design::spacing::k16;
 constexpr int kBodyLineGap = design::spacing::k4;
-constexpr int kBackButtonGap = design::spacing::k24;
+constexpr int kButtonGap = design::spacing::k16;
+constexpr int kBetweenButtonsGap = design::spacing::k12;
 
 struct Layout {
     int page_width = 0;
     int version_y = 0;
+    int usage_heading_y = 0;
+    int usage_lines_y = 0;
     int body_y = 0;
+    UiRect reset_usage = {};
     UiRect back = {};
 };
 
@@ -38,7 +43,12 @@ Layout BuildLayout(int portrait_width, int portrait_height, const SettingsAboutP
     layout.page_width = page_width;
     layout.version_y = title_bottom + kHeadingBottomPadding;
     const int version_bottom = layout.version_y + LineHeight(kVersionRole);
-    layout.body_y = version_bottom + kVersionBodyGap;
+    layout.usage_heading_y = version_bottom + kSectionGap;
+    layout.usage_lines_y = layout.usage_heading_y + LineHeight(kUsageHeadingRole) + kBodyLineGap;
+    const int usage_bottom =
+        layout.usage_lines_y +
+        static_cast<int>(state.usage_lines.size()) * (LineHeight(kBodyRole) + kBodyLineGap);
+    layout.body_y = usage_bottom + kSectionGap;
 
     const std::vector<std::string> body_lines =
         WrapTextToWidth(kBodyRole, std::string(state.acknowledgment_text), page_width);
@@ -46,10 +56,13 @@ Layout BuildLayout(int portrait_width, int portrait_height, const SettingsAboutP
         static_cast<int>(body_lines.size()) * (LineHeight(kBodyRole) + kBodyLineGap);
     const int body_bottom = layout.body_y + body_height;
 
-    ButtonStyle back_style = {};
-    back_style.width = page_width;
-    back_style.center_label = true;
-    layout.back = ButtonBounds(page_x, body_bottom + kBackButtonGap, state.back, back_style);
+    ButtonStyle button_style = {};
+    button_style.width = page_width;
+    button_style.center_label = true;
+    layout.reset_usage =
+        ButtonBounds(page_x, body_bottom + kButtonGap, state.reset_usage, button_style);
+    layout.back = ButtonBounds(page_x, layout.reset_usage.bottom() + kBetweenButtonsGap,
+                               state.back, button_style);
 
     return layout;
 }
@@ -63,6 +76,8 @@ UiRect SettingsAboutPageItemBounds(int portrait_width,
 {
     const Layout layout = BuildLayout(portrait_width, portrait_height, state);
     switch (item) {
+        case SettingsAboutPageItemId::kResetUsage:
+            return layout.reset_usage;
         case SettingsAboutPageItemId::kBack:
             return layout.back;
         case SettingsAboutPageItemId::kNone:
@@ -82,13 +97,16 @@ bool HitTestSettingsAboutPageItem(int portrait_width,
         *item = SettingsAboutPageItemId::kNone;
     }
 
-    const UiRect bounds = SettingsAboutPageItemBounds(portrait_width, portrait_height, state,
-                                                       SettingsAboutPageItemId::kBack);
-    if (!bounds.IsEmpty() && bounds.Contains(x, y)) {
-        if (item != nullptr) {
-            *item = SettingsAboutPageItemId::kBack;
+    for (const SettingsAboutPageItemId candidate :
+         {SettingsAboutPageItemId::kResetUsage, SettingsAboutPageItemId::kBack}) {
+        const UiRect bounds =
+            SettingsAboutPageItemBounds(portrait_width, portrait_height, state, candidate);
+        if (!bounds.IsEmpty() && bounds.Contains(x, y)) {
+            if (item != nullptr) {
+                *item = candidate;
+            }
+            return true;
         }
-        return true;
     }
     return false;
 }
@@ -121,6 +139,16 @@ void DrawSettingsAboutPage(uint8_t* framebuffer,
                        kSideInset, layout.version_y, state.version_text, kVersionRole,
                        design::color::kTextPrimary);
 
+    DrawTypographyText(framebuffer, raw_width, raw_height, portrait_width, portrait_height,
+                       kSideInset, layout.usage_heading_y, state.usage_heading_text,
+                       kUsageHeadingRole, design::color::kBlack);
+    int usage_y = layout.usage_lines_y;
+    for (const std::string& line : state.usage_lines) {
+        DrawTypographyText(framebuffer, raw_width, raw_height, portrait_width, portrait_height,
+                           kSideInset, usage_y, line, kBodyRole, design::color::kTextPrimary);
+        usage_y += LineHeight(kBodyRole) + kBodyLineGap;
+    }
+
     const std::vector<std::string> body_lines =
         WrapTextToWidth(kBodyRole, std::string(state.acknowledgment_text), layout.page_width);
     int cursor_y = layout.body_y;
@@ -131,6 +159,9 @@ void DrawSettingsAboutPage(uint8_t* framebuffer,
         cursor_y += body_line_height + kBodyLineGap;
     }
 
+    DrawButton(framebuffer, raw_width, raw_height, portrait_width, portrait_height,
+               layout.reset_usage.x, layout.reset_usage.y, state.reset_usage,
+               {.width = layout.reset_usage.width, .center_label = true});
     DrawButton(framebuffer, raw_width, raw_height, portrait_width, portrait_height, layout.back.x,
               layout.back.y, state.back, {.width = layout.back.width, .center_label = true});
 

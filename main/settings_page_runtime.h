@@ -34,6 +34,8 @@ void RequestShowAbout();
 bool ConsumePendingShowAbout();
 void RequestShowSound();
 bool ConsumePendingShowSound();
+void RequestShowDisplay();
+bool ConsumePendingShowDisplay();
 
 }  // namespace settings_page_runtime
 

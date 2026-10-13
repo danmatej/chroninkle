@@ -14,6 +14,12 @@ public:
     bool SetFocusIndex(int index);
     bool IsRoleFocused(page_navigation::NavigationItemRole role) const;
 
+    // Reset usage is a two-press action: the first press arms it (relabels the button),
+    // the second performs the reset. Moving focus or leaving the page disarms it.
+    void ArmResetUsage() { reset_usage_armed_ = true; }
+    void DisarmResetUsage() { reset_usage_armed_ = false; }
+    bool reset_usage_armed() const { return reset_usage_armed_; }
+
     epaper_ui::SettingsAboutPageState BuildState() const;
 
     const page_navigation::NavigationModel& navigation_model() const { return navigation_model_; }
@@ -23,6 +29,7 @@ private:
     page_navigation::NavigationModel navigation_model_ =
         page_navigation::BuildSettingsAboutPageNavigationModel();
     page_navigation::RovingFocus focus_{navigation_model_.item_count, 0};
+    bool reset_usage_armed_ = false;
 };
 
 #endif  // SETTINGS_ABOUT_PAGE_COORDINATOR_H_

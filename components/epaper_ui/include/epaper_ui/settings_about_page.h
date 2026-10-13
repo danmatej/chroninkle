@@ -1,6 +1,7 @@
 #ifndef EPAPER_UI_SETTINGS_ABOUT_PAGE_H_
 #define EPAPER_UI_SETTINGS_ABOUT_PAGE_H_
 
+#include <array>
 #include <cstdint>
 #include <string>
 #include <string_view>
@@ -13,6 +14,7 @@ namespace epaper_ui {
 
 enum class SettingsAboutPageItemId : uint8_t {
     kNone = 0,
+    kResetUsage,
     kBack,
 };
 
@@ -21,9 +23,13 @@ struct SettingsAboutPageState {
     std::string_view title_text = "About";
     // e.g. "Version 0.7.0" -- built at BuildState() time from esp_app_get_description().
     std::string version_text;
+    std::string_view usage_heading_text = "Gemini usage (estimate)";
+    // e.g. "Today: 1,234 tokens" / "This month: ..." / "All time: ... (N requests)".
+    std::array<std::string, 3> usage_lines = {};
     std::string_view acknowledgment_text =
         "Chroninkle began as a fork of Followup, created by ALXV Labs. Thank you to ALXV for "
         "the original design and implementation this project builds on.";
+    ButtonState reset_usage = {};
     ButtonState back = {};
 };
 

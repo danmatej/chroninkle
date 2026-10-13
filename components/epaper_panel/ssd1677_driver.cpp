@@ -12,13 +12,19 @@ namespace {
 
 constexpr const char* kTag = "Ssd1677";
 // Consecutive differential updates before the contrast fade becomes visible enough to
-// need a full re-drive. Soft budget only: NeedsGhostingFlush() turns true once it's hit,
-// but callers (display_service) decide when to act on it rather than this driver forcing
-// a flush inline on whichever partial refresh call happens to reach this count.
-constexpr int kMaxPartialRefreshesBeforeFlush = 8;
-// Hard backstop, enforced inline here regardless of what any caller does with
-// NeedsGhostingFlush(): bounds how far ghosting can grow under continuous, gapless input.
-constexpr int kHardPartialRefreshCeiling = kMaxPartialRefreshesBeforeFlush * 5 / 2;
+// need a full re-drive live in EpaperPanel::partial_refresh_budget_ (caller-configurable,
+// default 8). Soft budget only: NeedsGhostingFlush() turns true once it's hit, but callers
+// (display_service) decide when to act on it rather than this driver forcing a flush inline
+// on whichever partial refresh call happens to reach this count. The hard backstop below,
+// enforced inline regardless of what any caller does with NeedsGhostingFlush(), bounds how
+// far ghosting can grow under continuous, gapless input.
+constexpr int kMinPartialRefreshBudget = 2;
+constexpr int kMaxPartialRefreshBudget = 200;
+
+int HardPartialRefreshCeiling(int budget)
+{
+    return budget * 5 / 2;
+}
 // Display Update Control 2 (0x22) sequences, matching the `followup` esp-epaper driver
 // that is proven on this panel: 0xF7 drives the mode-1 full waveform, 0xFF the mode-2
 // differential waveform used for partials.
@@ -257,9 +263,9 @@ esp_err_t EpaperPanel::RefreshPartialFullScreen()
     // Use the mode-1 full waveform, not the fast one: fast flashes but settles at lower
     // contrast on this panel, so it cannot be used to restore a faded screen.
     // Only the hard ceiling forces the flush inline here -- the soft budget
-    // (kMaxPartialRefreshesBeforeFlush, surfaced via NeedsGhostingFlush()) is handled by
+    // (partial_refresh_budget_, surfaced via NeedsGhostingFlush()) is handled by
     // display_service deferring to the next idle gap instead.
-    if (!CanPartialRefresh(kHardPartialRefreshCeiling)) {
+    if (!CanPartialRefresh(HardPartialRefreshCeiling(partial_refresh_budget_.load()))) {
         return RefreshFullBase();
     }
     if (framebuffer_ == nullptr || previous_framebuffer_ == nullptr) {
@@ -347,5 +353,15 @@ esp_err_t EpaperPanel::Sleep()
 
 bool EpaperPanel::NeedsGhostingFlush() const
 {
-    return partial_refresh_count_ >= kMaxPartialRefreshesBeforeFlush;
+    return partial_refresh_count_ >= partial_refresh_budget_.load();
+}
+
+void EpaperPanel::SetPartialRefreshBudget(int partial_refreshes)
+{
+    if (partial_refreshes < kMinPartialRefreshBudget) {
+        partial_refreshes = kMinPartialRefreshBudget;
+    } else if (partial_refreshes > kMaxPartialRefreshBudget) {
+        partial_refreshes = kMaxPartialRefreshBudget;
+    }
+    partial_refresh_budget_.store(partial_refreshes);
 }

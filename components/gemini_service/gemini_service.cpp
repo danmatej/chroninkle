@@ -20,6 +20,7 @@
 #include "esp_http_client.h"
 #include "esp_log.h"
 #include "esp_timer.h"
+#include "gemini_usage.h"
 #include "chroninkle_task_config.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
@@ -1464,6 +1465,7 @@ TextResult GenerateText(const std::string& prompt)
     } else {
         cJSON* root = cJSON_ParseWithLength(http.body.c_str(), http.body.size());
         if (http.status_code >= 200 && http.status_code < 300) {
+            usage::RecordFromResponse(root);
             result.text = ExtractCandidateText(root);
             result.success = !result.text.empty();
             if (!result.success) {
@@ -1621,6 +1623,7 @@ TranscriptionResult Transcribe(const recording_service::RecordedClip& clip)
 
     cJSON* root = cJSON_ParseWithLength(http.body.c_str(), http.body.size());
     if (http.status_code >= 200 && http.status_code < 300) {
+        usage::RecordFromResponse(root);
         result.transcript = TrimForLog(ExtractCandidateText(root), 1U << 20);
         result.success = !result.transcript.empty();
         if (!result.success) {

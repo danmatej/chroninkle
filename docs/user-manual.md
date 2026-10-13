@@ -318,7 +318,7 @@ storage, from Settings > Storage) and they'll show up here.
 
 ## Settings
 
-Settings is a hub, like a phone's settings app: seven headings, each
+Settings is a hub, like a phone's settings app: eight headings, each
 opening its own page, plus one action below them:
 
 - **Network** — WiFi and Access Point.
@@ -327,7 +327,8 @@ opening its own page, plus one action below them:
 - **Todos** — todo archiving.
 - **Topics** — create, rename, and delete topics.
 - **Sound** — turn sounds on or off, all at once or one kind at a time.
-- **About** — firmware version and acknowledgments.
+- **Display** — how often the screen does a full "cleanup" refresh.
+- **About** — firmware version, Gemini token usage, and acknowledgments.
 - **Manual** — replays the first-time onboarding carousel. This one isn't
   a heading — it's a direct action, since there's nothing to configure on
   it.
@@ -390,10 +391,36 @@ when both **All sounds** and its own toggle are on. Turning off the replay
 skips straight to tagging after you record. Playing a clip yourself from a
 note's details page is never muted.
 
+### Display
+
+**Screen cleanup** — e-paper slowly builds up faint "ghost" traces of
+earlier screens as it updates. Every so often Chroninkle clears them with
+a full refresh, which briefly flashes the screen black and white. This
+setting chooses how often that happens:
+
+- **Often** — every 8 screen updates (cleanest picture, most flashing).
+- **Normal** — every 16 updates (the default).
+- **Rarely** — every 32 updates.
+- **Minimal** — every 64 updates (least flashing, more ghosting).
+
+The change applies straight away. Changing screens still uses a full
+refresh where it always did; this only controls the extra cleanups in
+between. If ghosting builds up a lot, Chroninkle will still clean the
+screen on its own sooner.
+
 ### About
 
-Shows the installed firmware version and an acknowledgment: Chroninkle
+Shows the installed firmware version, an estimate of how much of your
+Gemini allowance Chroninkle has used, and an acknowledgment: Chroninkle
 began as a fork of Followup, created by ALXV Labs.
+
+**Gemini usage** lists the tokens Gemini reported for transcriptions and
+summaries **today**, **this month**, and **all time** (with the number of
+requests). Today and this month go by the device's clock, so they read 0
+until the time is set. These are counted on the device and are an
+estimate — check Google AI Studio for exact billing. To start counting
+from zero, select **Reset usage**, then select it again (it reads **Press
+again to reset**) to confirm; moving away cancels.
 
 ### Manage topics
 

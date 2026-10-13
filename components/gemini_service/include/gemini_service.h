@@ -100,6 +100,16 @@ struct TranscriptionResult {
     uint64_t total_elapsed_ms = 0;
 };
 
+// Running totals of the tokens Gemini reported (usageMetadata.totalTokenCount) across every
+// generateContent call (transcriptions and summaries), persisted in NVS. "Today"/"month" use
+// the device's local date and read 0 until the clock is set.
+struct UsageStats {
+    uint64_t today_tokens = 0;
+    uint64_t month_tokens = 0;
+    uint64_t total_tokens = 0;
+    uint32_t total_requests = 0;
+};
+
 using EventHandler = void (*)(const Event& event, void* context);
 
 esp_err_t Init();
@@ -127,6 +137,9 @@ void SetNetworkState(bool connected, bool access_point_mode);
 void RegisterPortalRoutes(httpd_handle_t server);
 
 const char* ApiKeySourceName(ApiKeySource source);
+
+UsageStats GetUsageStats();
+void ResetUsageStats();
 
 }  // namespace gemini_service
 

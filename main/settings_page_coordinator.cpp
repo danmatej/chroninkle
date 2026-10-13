@@ -12,6 +12,7 @@ constexpr NavigationItemRole kMenuRoles[epaper_ui::kSettingsMenuItemCount] = {
     NavigationItemRole::kSettingsMenuTodos,
     NavigationItemRole::kSettingsMenuTopics,
     NavigationItemRole::kSettingsMenuSound,
+    NavigationItemRole::kSettingsMenuDisplay,
     NavigationItemRole::kSettingsMenuAbout,
 };
 

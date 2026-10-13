@@ -8,6 +8,24 @@ via `git log`, not backfilled here.
 
 ## [Unreleased]
 
+## [1.3.0] - 2026-10-13
+
+### Added
+
+- A new **Display** page under Settings with a **Screen cleanup** option
+  (Often / Normal / Rarely / Minimal = every 8 / 16 / 32 / 64 screen
+  updates) controlling how often the e-paper does a full anti-ghosting
+  refresh. Saved across restarts.
+- **Gemini usage** on the Settings > About page: tokens used today, this
+  month and all time (plus request count), counted from the `usageMetadata`
+  of every transcription/summary response and kept in NVS, with a
+  two-press **Reset usage** button.
+
+### Changed
+
+- The default screen cleanup interval is now every 16 partial updates
+  (was 8), so full-screen flashes happen half as often.
+
 ## [1.2.0] - 2026-09-26
 
 ### Added

@@ -851,6 +851,13 @@ Runtime-persisted settings live in service-owned NVS namespaces:
 - `rec_archive_cfg`: `days` (todo archive-after-days setting, `recording_archive_service`;
   deliberately a separate namespace from `recording_archive_service`'s own internal
   `rec_archive`/`counts` cached-counts blob, which isn't a user setting)
+- `display`: `cleanup` (Settings > Display screen-cleanup option index, `display_settings`;
+  applied at boot and on change via `display_service::SetCleanupInterval`, which sets the
+  SSD1677 driver's partial-refresh budget before a ghosting-flush full refresh -- the hard
+  inline-flush ceiling scales to 2.5x that budget)
+- `gemini_usage`: `stats` (blob of today/month/all-time token totals and request count,
+  owned by `gemini_service`'s `gemini_usage.cpp`; fed from `usageMetadata` of every
+  successful generateContent response, shown on Settings > About)
 
 The build-time Wi-Fi/time defaults live under `Chroninkle Settings`:
 
